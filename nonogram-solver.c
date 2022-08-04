@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_TABLE_SIZE 50
-#define MAX_HINT_SIZE 20
+#define MAX_TABLE_SIZE 70
+#define MAX_HINT_SIZE 30
 #define MAX_HINT_LINE_STRING_SIZE MAX_HINT_SIZE * 5
 
 struct TableList {
@@ -12,24 +12,28 @@ struct TableList {
 } table_struct = {{0, }, NULL}, *table_struct_ptr = &table_struct;
 int table_size[2];
 int hint[2][MAX_TABLE_SIZE][MAX_HINT_SIZE + 1];
-int line[MAX_TABLE_SIZE], line_size, line_full;
-int line_hint[MAX_TABLE_SIZE], line_hint_size, line_hint_sum, line_hint_loc;
+int line[MAX_TABLE_SIZE], line_size;
+int line_hint[MAX_TABLE_SIZE], line_hint_size;
 int new_line[MAX_TABLE_SIZE], new_line_case[MAX_TABLE_SIZE], new_line_check;
 int guess;
 
 int solve(int table_remain);
-void solveLine(int line_hint_sum, int line_hint_loc, int line_case_loc);
+int solveLine(int line_hint_sum, int line_hint_loc, int line_case_loc);
 int guessLine(int g_line[], int line_size, int g_line_hint[], int g_line_hint_size, int line_hint_sum, int line_hint_loc, int g_new_line[], int g_new_line_loc, int table_row, int table_remain);
 void printTable(void);
 
 int solve(int table_remain) {
     int table_row, table_col;
     int table_changes = 0;
+    int line_hint_sum, line_hint_loc;
+    int line_full;
 
-    // table_struct_ptr->table[][MAX_TABLE_SIZE] [MAX_TABLE_SIZE][] 0: This line has blanks, 1: This line is full
+    // return 0: This table is the soultion, 1: This table is impossible
+    // table_struct_ptr->table[][MAX_TABLE_SIZE] [MAX_TABLE_SIZE][] 0: This line may have more determined changes, 1: This line has no more determined change, 2: This line is full
+
     line_size = table_size[1];
     for (table_row = 0; table_row < table_size[0]; table_row++) {
-        if (table_struct_ptr->table[table_row][MAX_TABLE_SIZE]) {
+        if (table_struct_ptr->table[table_row][MAX_TABLE_SIZE] >= 1) {
             continue;
         }
 
@@ -47,7 +51,11 @@ int solve(int table_remain) {
             line_hint_sum += line_hint[line_hint_loc];
         }
         
-        solveLine(line_hint_sum, 0, -1);
+        if (solveLine(line_hint_sum, 0, -1) == 1) {
+            table_struct_ptr->table[table_row][MAX_TABLE_SIZE] = 1;
+
+            continue;   
+        }
 
         if (!new_line_check) {
             return 1;
@@ -57,6 +65,7 @@ int solve(int table_remain) {
         for (table_col = 0; table_col < line_size; table_col++) {
             if (new_line[table_col] != line[table_col]) {
                 table_struct_ptr->table[table_row][table_col] = new_line[table_col];
+                table_struct_ptr->table[MAX_TABLE_SIZE][table_col] = 0;
                 table_changes++;
             }
 
@@ -64,12 +73,14 @@ int solve(int table_remain) {
         }
 
         if (line_full) {
+            table_struct_ptr->table[table_row][MAX_TABLE_SIZE] = 2;
+        } else {
             table_struct_ptr->table[table_row][MAX_TABLE_SIZE] = 1;
         }
     }
     line_size = table_size[0];
     for (table_col = 0; table_col < table_size[1]; table_col++) {
-        if (table_struct_ptr->table[MAX_TABLE_SIZE][table_col]) {
+        if (table_struct_ptr->table[MAX_TABLE_SIZE][table_col] >= 1) {
             continue;
         }
         
@@ -87,7 +98,11 @@ int solve(int table_remain) {
             line_hint_sum += line_hint[line_hint_loc];
         }
         
-        solveLine(line_hint_sum, 0, -1);
+        if (solveLine(line_hint_sum, 0, -1) == 1) {
+            table_struct_ptr->table[MAX_TABLE_SIZE][table_col] = 1;
+
+            continue;
+        }
 
         if (!new_line_check) {
             return 1;
@@ -97,6 +112,7 @@ int solve(int table_remain) {
         for (table_row = 0; table_row < line_size; table_row++) {
             if (new_line[table_row] != line[table_row]) {
                 table_struct_ptr->table[table_row][table_col] = new_line[table_row];
+                table_struct_ptr->table[table_row][MAX_TABLE_SIZE] = 0;
                 table_changes++;
             }
             
@@ -104,10 +120,12 @@ int solve(int table_remain) {
         }
 
         if (line_full) {
+            table_struct_ptr->table[MAX_TABLE_SIZE][table_col] = 2;
+        } else {
             table_struct_ptr->table[MAX_TABLE_SIZE][table_col] = 1;
         }
     }
-
+    
     table_remain -= table_changes;
     if (table_remain == 0) {
         printTable();
@@ -124,11 +142,11 @@ int solve(int table_remain) {
 
         g_line_size = table_size[1];
         for (table_row = 0; table_row < table_size[0]; table_row++) {
-            if (table_struct_ptr->table[table_row][MAX_TABLE_SIZE] == 1) {
+            if (table_struct_ptr->table[table_row][MAX_TABLE_SIZE] == 2) {
                 continue;
             }
 
-            table_struct_ptr->table[table_row][MAX_TABLE_SIZE] = 1;
+            table_struct_ptr->table[table_row][MAX_TABLE_SIZE] = 2;
 
             for (table_col = 0; table_col < g_line_size; table_col++) {
                 g_line[table_col] = table_struct_ptr->table[table_row][table_col];
@@ -151,23 +169,63 @@ int solve(int table_remain) {
     }
 }
 
-void solveLine(int line_hint_sum, int line_hint_loc, int line_case_loc) {
+int solveLine(int line_hint_sum, int line_hint_loc, int line_case_loc) {
+    int new_line_check_loc;
+
     if (line_case_loc == -1) {
         if (line[0] != -1) {
-            solveLine(line_hint_sum, 0, 0);
+            // return 0: This line case has determined changes, 1: This line case has no determined change
+
+            if (solveLine(line_hint_sum, 0, 0) == 0) {
+                new_line_check = 0;
+
+                for (new_line_check_loc = 0; new_line_check_loc < line_size; new_line_check_loc++) {
+                    if (new_line[new_line_check_loc] != line[new_line_check_loc]) {
+                        new_line_check = 1;
+
+                        break;
+                    }
+                }
+
+                if (!new_line_check) {
+                    new_line_check = 1;
+
+                    return 1;
+                }
+            }
         }
         for (line_case_loc = 0; (line_case_loc < line_size - line_hint_size - line_hint_sum + 1) && (line[line_case_loc] != 1); line_case_loc++) {
             new_line_case[line_case_loc] = -1;
             
-            solveLine(line_hint_sum, 0, line_case_loc + 1);
+            if (solveLine(line_hint_sum, 0, line_case_loc + 1) == 0) {
+                new_line_check = 0;
+
+                for (new_line_check_loc = 0;  new_line_check_loc < line_size; new_line_check_loc++) {
+                    if (new_line[new_line_check_loc] != line[new_line_check_loc]) {
+                        new_line_check = 1;
+
+                        break;
+                    }
+                }
+
+                if (!new_line_check) {
+                    new_line_check = 1;
+
+                    return 1;
+                }
+            }
         }
+
+        return 0;
     } else {
+        // return 0: This line case is possible, 1: This line case is impossible
+
         int line_case_loc_next;
 
         line_case_loc_next = line_case_loc + line_hint[line_hint_loc];
         for (; line_case_loc < line_case_loc_next; line_case_loc++) {
             if (line[line_case_loc] == -1) {
-                return;
+                return 1;
             }
 
             new_line_case[line_case_loc] = 1;
@@ -178,17 +236,35 @@ void solveLine(int line_hint_sum, int line_hint_loc, int line_case_loc) {
             line_case_loc_next = line_size - line_hint_size - line_hint_sum + line_hint_loc + 1;
             for (; line_case_loc < line_case_loc_next; line_case_loc++) {
                 if (line[line_case_loc] == 1) {
-                    return;
+                    return 1;
                 }
 
                 new_line_case[line_case_loc] = -1;
 
-                solveLine(line_hint_sum, line_hint_loc, line_case_loc + 1);
+                if (solveLine(line_hint_sum, line_hint_loc, line_case_loc + 1) == 0) {
+                    new_line_check = 0;
+
+                    for (new_line_check_loc = line_case_loc + 1;  new_line_check_loc < line_size; new_line_check_loc++) {
+                        if (new_line[new_line_check_loc] != line[new_line_check_loc]) {
+                            new_line_check = 1;
+
+                            break;
+                        }
+                    }
+
+                    if (!new_line_check) {
+                        new_line_check = 1;
+
+                        return 0;
+                    }
+                }
             }
+            
+            return 1;
         } else {  
             for (; line_case_loc < line_size; line_case_loc++) {
                 if (line[line_case_loc] == 1) {
-                    return;
+                    return 1;
                 }
                 
                 new_line_case[line_case_loc] = -1;
@@ -205,6 +281,8 @@ void solveLine(int line_hint_sum, int line_hint_loc, int line_case_loc) {
                     new_line[line_case_loc] = (new_line[line_case_loc] + new_line_case[line_case_loc]) / 2;
                 }
             }
+
+            return 0;
         }
     }
 }
@@ -273,6 +351,15 @@ int guessLine(int g_line[], int g_line_size, int g_line_hint[], int g_line_hint_
             for (g_table_row = 0; g_table_row < table_size[0]; g_table_row++) {
                 for (g_table_col = 0; g_table_col < table_size[1]; g_table_col++) {
                     g_table_struct_ptr->table[g_table_row][g_table_col] = table_struct_ptr->table[g_table_row][g_table_col];
+                }
+            
+                g_table_struct_ptr->table[g_table_row][MAX_TABLE_SIZE] = table_struct_ptr->table[g_table_row][MAX_TABLE_SIZE];
+            }
+            for (g_table_col = 0; g_table_col < table_size[1]; g_table_col++) {
+                if (table_struct_ptr->table[MAX_TABLE_SIZE][g_table_col] == 2) {
+                    g_table_struct_ptr->table[MAX_TABLE_SIZE][g_table_col] = 2;
+                } else {
+                    g_table_struct_ptr->table[MAX_TABLE_SIZE][g_table_col] = 0;
                 }
             }
             
