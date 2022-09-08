@@ -1,16 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define MAX_TABLE_SIZE 100
 #define MAX_CLUE_SIZE 30
-#define MAX_CLUE_LINE_STRING_SIZE MAX_CLUE_SIZE * 5
 
+int table_size[2];
 struct TableList {
     int table[MAX_TABLE_SIZE + 1][MAX_TABLE_SIZE + 1];
     struct TableList *prev_table;
 } table_struct = {{0, }, NULL}, *init_table_struct_ptr = &table_struct, *table_struct_ptr = &table_struct;
-int table_size[2];
 int clue[2][MAX_TABLE_SIZE][MAX_CLUE_SIZE + 1];
 int line[MAX_TABLE_SIZE], line_size;
 int line_clue[MAX_TABLE_SIZE], line_clue_size, line_clue_check[MAX_TABLE_SIZE];
@@ -39,8 +37,6 @@ int solve(int table_remain) {
         new_line_check = 0;
         for (table_col = 0; table_col < line_size; table_col++) {
             line[table_col] = table_struct_ptr->table[table_row][table_col];
-            new_line[table_col] = 0;
-            new_line_case[table_col] = 0;
         }
         
         line_clue_size = clue[0][table_row][MAX_CLUE_SIZE];
@@ -87,8 +83,6 @@ int solve(int table_remain) {
         new_line_check = 0;
         for (table_row = 0; table_row < line_size; table_row++) {
             line[table_row] = table_struct_ptr->table[table_row][table_col];
-            new_line[table_row] = 0;
-            new_line_case[table_row] = 0;
         }
         
         line_clue_size = clue[1][table_col][MAX_CLUE_SIZE];
@@ -371,21 +365,21 @@ void printTable(void) {
 }
 
 int main(void) {
-    int direction;
-    char line_clue_string[MAX_CLUE_LINE_STRING_SIZE], *line_clue_string_ptr;
+    int direction, clue_loc, line_clue_loc;
+    char buffer;
 
     scanf("%d %d%*c", &table_size[0], &table_size[1]);
     for (direction = 0; direction < 2; direction ++) {
-        for (line_size = 0; line_size < table_size[direction]; line_size++) {
-            scanf("%[^\n]%*c", line_clue_string);
-            line_clue_string_ptr = strtok(line_clue_string, " ");
-            
-            for (line_clue_size = 0; (line_clue_size < MAX_CLUE_SIZE) && (line_clue_string_ptr != NULL); line_clue_size++)
-            {
-                clue[direction][line_size][line_clue_size] = atoi(line_clue_string_ptr);
-                line_clue_string_ptr = strtok(NULL, " ");
+        for (clue_loc = 0; clue_loc < table_size[direction]; clue_loc++) {
+            for (line_clue_loc = 0; line_clue_loc < MAX_CLUE_SIZE; line_clue_loc++) {
+                scanf("%d%c", &clue[direction][clue_loc][line_clue_loc], &buffer);
+                
+                if (buffer == '\n') {
+                    clue[direction][clue_loc][MAX_CLUE_SIZE] = line_clue_loc + 1;
+
+                    break;
+                }
             }
-            clue[direction][line_size][MAX_CLUE_SIZE] = line_clue_size;
         }
     }
 
