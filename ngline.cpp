@@ -9,104 +9,116 @@ NonogramLine::NonogramLine(NonogramTable* const table) : table{table} {
 }
 
 void NonogramLine::init(const uint16_t vec, const uint16_t vi) {
-    base.set();
-    temp.set();
-    for (uint16_t ci{0}; ci < size[!vec]; ci++) {
-        if (table->get(vec, vi, ci) != 0b00) {
-            setBinBit(base, ci, table->get(vec, vi, ci));
-        }
-        black[ci + 1] = black[ci] + (table->get(vec, vi, ci) == 0b10);
-        white[ci + 1] = white[ci] + (table->get(vec, vi, ci) == 0b01);
+    // Initialize base.
+    std::fill(base, base + size[!vec], 0b11);
+    // Initialize color.
+    for (uint16_t i{0}; i < size[!vec]; i++) {
+        color[0][i + 1] = color[0][i] + (table->get(vec, vi, i) == 0b01);
+        color[1][i + 1] = color[1][i] + (table->get(vec, vi, i) == 0b10);
     }
-    possible[0].set();
-    possible[clue_size[vec][vi] + 1].reset();
-    shift[0] = shift[1] = 0;
-    find.reset();
-    // Update possible and impossible.
+    color[0][size[!vec] + 1] = color[0][size[!vec]];
+    color[1][size[!vec] + 1] = color[1][size[!vec]];
+    // Initialize shift.
+    shift[0][0] = shift[0][1] = 0;
+    std::fill(&shift[1][0], &shift[1][clue_size[vec][vi] + 2], 0);
+    // Initialize cache and subcache.
+    std::fill(&cache[true][0][0], &cache[true][0][size[!vec]], true);
+    std::fill(&cache[true][clue_size[vec][vi] + 1][0], &cache[true][clue_size[vec][vi] + 1][size[!vec]], false);
     for (uint16_t ci{1}; ci <= clue_size[vec][vi]; ci++) {
-        possible[ci].reset();
-        impossible[ci].reset();
+        std::fill(&cache[true][ci][0], &cache[true][ci][size[!vec]], false);
+        std::fill(&cache[false][ci][0], &cache[false][ci][size[!vec]], false);
         for (uint16_t si{0}; si <= margin[vec][vi]; si++) {
-            if (white[offset[vec][vi][ci - 1] + si] != white[offset[vec][vi][ci] + si - 1]) {
-                impossible[ci].set(si);
+            if (color[0][offset[vec][vi][ci - 1] + si] != color[0][offset[vec][vi][ci] + si - 1] || color[1][offset[vec][vi][ci] + si - 1] != color[1][offset[vec][vi][ci] + si]) {
+                cache[false][ci][si] = true;
             }
         }
     }
     for (uint16_t si{0}; si <= margin[vec][vi]; si++) {
-        if (black[offset[vec][vi][clue_size[vec][vi]] + si - 1] == black[size[!vec]]) {
+        if (color[1][offset[vec][vi][clue_size[vec][vi]] + si - 1] == color[1][size[!vec]]) {
             for (; si <= margin[vec][vi]; si++) {
-                possible[clue_size[vec][vi] + 1].set(si);
+                cache[true][clue_size[vec][vi] + 1][si] = true;
             }
         } else {
-            impossible[clue_size[vec][vi]].set(si);
+            cache[false][clue_size[vec][vi]][si] = true;
         }
+    }
+    std::fill(subcache, subcache + clue_size[vec][vi] + 2, false);
+}
+void NonogramLine::fill(const uint16_t begin, const uint16_t end, const uint16_t v) {
+    for (uint16_t i{begin}; i < end; i++) {
+        base[i] &= v;
     }
 }
 bool NonogramLine::solve(const uint16_t vec, const uint16_t vi) {
     init(vec, vi);
     for (uint16_t ci{1}; ci > 0;) {
-        for (uint16_t &si{shift[ci]}; si <= margin[vec][vi]; si++) {
+        for (uint16_t &si{shift[0][ci]}; si <= margin[vec][vi]; si++) {
             // Proceed to next shift index if current one is impossible.
-            if (impossible[ci].test(si)) {
+            if (cache[false][ci][si]) {
                 continue;
             }
 
             // Ignore the left shift index if the case that set 0b10 to 0b01 is found.
-            if (black[std::max(offset[vec][vi][ci - 1] + shift[ci - 1] - 1, 0)] != black[offset[vec][vi][ci - 1] + si]) {
+            if (color[1][offset[vec][vi][ci - 1] + shift[0][ci - 1]] != color[1][offset[vec][vi][ci - 1] + si]) {
                 si = margin[vec][vi] + 1;
 
                 break;
             }
             
             // Ignore current clue index if current shift index is known as a solution.
-            if (possible[ci + 1].test(shift[ci])) {
+            if (cache[true][ci + 1][shift[0][ci]]) {
                 ci++;
-                find.set(ci);
-                shift[ci] = margin[vec][vi] + 1;
+                shift[0][ci] = margin[vec][vi] + 1;
+                subcache[ci] = true;
 
                 break;
             }
 
             // Probe next clue index if shift index of current one is not probed and not impossible.
-            if (white[offset[vec][vi][ci - 1] + si] == white[offset[vec][vi][ci] + si - 1]) {
+            if (color[0][offset[vec][vi][ci - 1] + si] == color[0][offset[vec][vi][ci] + si - 1]) {
                 ci++;
-                find.reset(ci);
-                shift[ci] = shift[ci - 1];
+                shift[0][ci] = shift[0][ci - 1];
+                subcache[ci] = false;
 
                 break;
             }
         }
         
         // Probe next shift index of previous clue index if current clue index is reached to the end of shift index.
-        if (shift[ci] > margin[vec][vi]) {
+        if (shift[0][ci] > margin[vec][vi]) {
             ci--;
-            // Set previous shift index to found if any solutions are found in current clue index.
-            if (find.test(ci + 1)) {
-                find.set(ci);
-                // Set previous shift index to possible and fill the line of current clue index if previous shift index is not set to possible.
-                if (!possible[ci].test(shift[ci])) {
-                    possible[ci].set(shift[ci]);
-                    fillBinBit(temp, std::max(offset[vec][vi][ci - 1] + shift[ci - 1] - 1, 0), offset[vec][vi][ci - 1] + shift[ci], 0b01);
-                    fillBinBit(temp, offset[vec][vi][ci - 1] + shift[ci], offset[vec][vi][ci] + shift[ci] - 1, 0b10);
-                    base &= temp;
+            // Set previous shift index subcache to true if any solutions are found in current clue index.
+            if (subcache[ci + 1]) {
+                subcache[ci] = true;
+                // Set previous shift index to cache and fill the line of current clue index if previous shift index is not set to cache (the order of setting a shift index to cache for each clue index is guaranteed to be in ascending order).
+                if (!cache[true][ci][shift[0][ci]]) {
+                    if (shift[1][ci] == 0) {
+                        fill(offset[vec][vi][ci - 1] + shift[0][ci - 1], offset[vec][vi][ci - 1] + shift[0][ci], 0b01);
+                        fill(offset[vec][vi][ci - 1] + shift[0][ci], offset[vec][vi][ci] + shift[0][ci] - 1, 0b10);
+                    } else {
+                        fill(std::max(offset[vec][vi][ci - 1] + shift[1][ci], offset[vec][vi][ci - 1] + shift[0][ci - 1]), offset[vec][vi][ci - 1] + shift[0][ci], 0b01);
+                        fill(std::max(offset[vec][vi][ci] + shift[1][ci] - 1, offset[vec][vi][ci - 1] + shift[0][ci]), offset[vec][vi][ci] + shift[0][ci] - 1, 0b10);
+                    }
+                    base[offset[vec][vi][ci] + shift[0][ci] - 1] &= 0b01;
+                    shift[1][ci] = shift[0][ci];
+                    cache[true][ci][shift[0][ci]] = true;
                 }
             } else {
-                impossible[ci].set(shift[ci]);
+                cache[false][ci][shift[0][ci]] = true;
             }
             // Probe next shift index of previous clue index.
-            shift[ci]++;
+            shift[0][ci]++;
             
             continue;
         }
     }
-    
+
     // Check if any solutions are found.
-    if (find.test(0)) {
+    if (subcache[0]) {
+        // Fill in the back of the smallest shift index of the last clue index with 0b01.
         for (uint16_t si{0};; si++) {
-            // Fill in the back of the smallest shift index of the last clue index with 0b01.
-            if (possible[clue_size[vec][vi]].test(si)) {
-                fillBinBit(temp, offset[vec][vi][clue_size[vec][vi]] + si - 1, size[!vec], 0b01);
-                base &= temp;
+            if (cache[true][clue_size[vec][vi]][si]) {
+                fill(offset[vec][vi][clue_size[vec][vi]] + si, size[!vec], 0b01);
 
                 break;
             }
@@ -119,63 +131,64 @@ bool NonogramLine::solve(const uint16_t vec, const uint16_t vi) {
 bool NonogramLine::infer(const Nonogram* const ng, const uint16_t vec, const uint16_t vi) {
     init(vec, vi);
     for (uint16_t ci{1}; ci > 0;) {
-        // Fill in the line and try to solve inferred table if clue index reached at the last and found a solution.
-        if (ci == clue_size[vec][vi] + 1) {
-            if (possible[ci].test(shift[ci - 1])) {
-                for (ci = 1; ci <= clue_size[vec][vi]; ci++) {
-                    fillBinBit(base, std::max(offset[vec][vi][ci - 1] + shift[ci - 1] - 1, 0), offset[vec][vi][ci - 1] + shift[ci], 0b01);
-                    fillBinBit(base, offset[vec][vi][ci - 1] + shift[ci], offset[vec][vi][ci] + shift[ci] - 1, 0b10);
-                }
-                fillBinBit(base, offset[vec][vi][clue_size[vec][vi]] + shift[clue_size[vec][vi]] - 1, size[!vec], 0b01);
-
-                if (Nonogram{ng, vec, vi}.solve()) {
-                    return true;
-                }
-
-                find.set(ci - 1);
-            }
-
-            // Probe next shift index of previous clue index.
-            ci--;
-            shift[ci]++;
-        }
-
-        for (uint16_t &si{shift[ci]}; si <= margin[vec][vi]; si++) {
+        for (uint16_t &si{shift[0][ci]}; si <= margin[vec][vi]; si++) {
             // Proceed to next shift index if current one is impossible.
-            if (impossible[ci].test(si)) {
+            if (cache[false][ci][si]) {
                 continue;
             }
             
-            // Ignore the left shift index if the case setting 0b10 to 0b01 is found.
-            if (black[std::max(offset[vec][vi][ci - 1] + shift[ci - 1] - 1, 0)] != black[offset[vec][vi][ci - 1] + si]) {
+            // Ignore the left shift index if the case that set 0b10 to 0b01 is found.
+            if (color[1][offset[vec][vi][ci - 1] + shift[0][ci - 1]] != color[1][offset[vec][vi][ci - 1] + si]) {
                 si = margin[vec][vi] + 1;
 
                 break;
             }
 
             // Probe next clue index if shift index of current one is not probed and not impossible.
-            if (white[offset[vec][vi][ci - 1] + si] == white[offset[vec][vi][ci] + si - 1]) {
+            if (color[0][offset[vec][vi][ci - 1] + si] == color[0][offset[vec][vi][ci] + si - 1]) {
                 ci++;
-                find.reset(ci);
-                shift[ci] = shift[ci - 1];
+                shift[0][ci] = shift[0][ci - 1];
+                subcache[ci] = false;
 
                 break;
             }
         }
 
-        // Probe next shift index of previous clue index if current clue index is reached to the end of current shift index.
-        if (shift[ci] > margin[vec][vi]) {
+        // Probe next shift index of previous clue index if current clue index is reached to the end of shift index.
+        if (shift[0][ci] > margin[vec][vi]) {
             ci--;
-            // Set previous shift index to find if any solutions are found in current clue index.
-            if (find.test(ci + 1)) {
-                find.set(ci);
+            // Set previous shift index subcache to true if any solutions are found in current clue index.
+            if (subcache[ci + 1]) {
+                subcache[ci] = true;
             } else {
-                impossible[ci].set(shift[ci]);
+                cache[false][ci][shift[0][ci]] = true;
             }
             // Probe next shift index of previous clue index.
-            shift[ci]++;
+            shift[0][ci]++;
             
             continue;
+        }
+        
+        // Fill in the line and try to solve inferred table if clue index reached at the last and found a solution.
+        if (ci == clue_size[vec][vi] + 1) {
+            if (cache[true][ci][shift[0][ci - 1]]) {
+                for (ci = 1; ci <= clue_size[vec][vi]; ci++) {
+                    std::fill(&base[offset[vec][vi][ci - 1] + shift[0][ci - 1]], &base[offset[vec][vi][ci - 1] + shift[0][ci]], 0b01);
+                    std::fill(&base[offset[vec][vi][ci - 1] + shift[0][ci]], &base[offset[vec][vi][ci] + shift[0][ci] - 1], 0b10);
+                    base[offset[vec][vi][ci] + shift[0][ci] - 1] = 0b01;
+                }
+                std::fill(&base[offset[vec][vi][clue_size[vec][vi]] + shift[0][clue_size[vec][vi]]], &base[size[!vec] + 1], 0b01);
+                
+                if (Nonogram{ng, vec, vi}.solve()) {
+                    return true;
+                }
+
+                subcache[ci - 1] = true;
+            }
+
+            // Probe next shift index of previous clue index.
+            ci--;
+            shift[0][ci]++;
         }
     }
     

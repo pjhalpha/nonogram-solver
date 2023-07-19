@@ -9,20 +9,28 @@ NonogramTable::NonogramTable(NonogramLine* const line) : line{line} {
 }
 
 uint16_t NonogramTable::get(const bool vec, const uint16_t vi, const uint16_t i) const noexcept {
-    return getBinBit(base[vec ? i : vi], vec ? vi : i);
+    return base[vec ? i : vi][vec ? vi : i];
 }
 void NonogramTable::set(const bool vec, const uint16_t vi, const uint16_t i, const uint16_t v) {
-    setBinBit(base[vec ? i : vi], vec ? vi : i, v);
+    base[vec ? i : vi][vec ? vi : i] = v;
+}
+void NonogramTable::fill(const bool vec, const uint16_t vi, const uint16_t begin, const uint16_t end, const uint16_t v) {
+    for (uint16_t i{begin}; i < end; i++) {
+        if (get(vec, vi, i) == 0b00) {
+            set(vec, vi, i, v);
+        }
+    }
 }
 void NonogramTable::init(void) {
-    for (uint16_t vi{0}; vi < size[0]; vi++) {
-        base[vi].reset();
+    // Initialize base, remain, state, line_remain and line_state.
+    for (uint16_t r{0}; r < size[0]; r++) {
+        std::fill(&base[r][0], &base[r][size[1]], 0);
     }
     remain = size[0] * size[1];
     state = size[0] + size[1];
     for (uint16_t vec{0}; vec < 2; vec++) {
-        std::fill(&line_remain[vec][0], &line_remain[vec][0] + size[vec], size[!vec]);
-        line_state[vec].set();
+        std::fill(&line_remain[vec][0], &line_remain[vec][size[vec]], size[!vec]);
+        std::fill(&line_state[vec][0], &line_state[vec][size[vec]], true);
     }
     // Fill lines whose clue is 0.
     for (uint16_t vec{0}; vec < 2; vec++) for (uint16_t vi{0}; vi < size[vec]; vi++) {
@@ -41,47 +49,52 @@ void NonogramTable::init(void) {
     // Decrease remain if a pixel is not a gray.
     for (uint16_t r{0}; r < size[0]; r++) {
         for (uint16_t c{0}; c < size[1]; c++) {
-            if (getBinBit(base[r], c) != 0b00) {
+            if (base[r][c] != 0b00) {
                 remain--;
                 line_remain[0][r]--;
                 line_remain[1][c]--;
             }
         }
     }
-    // Set state to false if all pixels of a line is gray.
+    // Set state to false if all pixels of a line are gray.
     for (uint16_t vec{0}; vec < 2; vec++) for (uint16_t vi{0}; vi < size[vec]; vi++) {
         if (line_remain[vec][vi] == 0 || line_remain[vec][vi] == size[!vec]) {
             state--;
-            line_state[vec].reset(vi);
+            line_state[vec][vi] = false;
         }
     }
 }
-void NonogramTable::fill(const bool vec, const uint16_t vi, const uint16_t begin, const uint16_t end, const uint16_t v) {
-    for (uint16_t i{begin}; i < end; i++) {
-        if (get(vec, vi, i) == 0b00) {
-            set(vec, vi, i, v);
-        }
+void NonogramTable::copy(const NonogramTable &table) {
+    // Copy base, remain, state, line_remain and line_state
+    for (uint16_t r{0}; r < size[0]; r++) {
+        std::copy(&table.base[r][0], &table.base[r][size[1]], &base[r][0]);
+    }
+    remain = table.remain;
+    state = table.state;
+    for (uint16_t vec{0}; vec < 2; vec++) {
+        std::copy(&table.line_remain[vec][0], &table.line_remain[vec][size[vec]], &line_remain[vec][0]);
+        std::copy(&table.line_state[vec][0], &table.line_state[vec][size[vec]], &line_state[vec][0]);
     }
 }
 void NonogramTable::merge(const uint16_t vec, const uint16_t vi) {
-    uint16_t changed{0};
+    uint32_t changed{0};
 
-    // Merge the table with the solved line and update variable.
+    // Merge the table with the solved line and update base, remain, state, line_remain and line_state.
     for (uint16_t i{0}; i < size[!vec]; i++) {
-        if (get(vec, vi, i) == 0b00 && getBinBit(line->base, i) != 0b00) {
-            set(vec, vi, i, getBinBit(line->base, i));
+        if (get(vec, vi, i) == 0b00 && line->base[i] != 0b00) {
+            set(vec, vi, i, line->base[i]);
             changed++;
             line_remain[!vec][i]--;
-            if (!line_state[!vec].test(i)) {
+            if (!line_state[!vec][i]) {
                 state++;
-                line_state[!vec].set(i);
+                line_state[!vec][i] = true;
             }
         }
     }
     remain -= changed;
     state--;
     line_remain[vec][vi] -= changed;
-    line_state[vec].reset(vi);
+    line_state[vec][vi] = false;
 }
 bool NonogramTable::verify(void) {
     // Solve the table again to verify.
@@ -91,11 +104,4 @@ bool NonogramTable::verify(void) {
         }
     }
     return true;
-}
-void NonogramTable::copy(const NonogramTable &table) {
-    std::copy(table.base, table.base + MAX_NG_SIZE, base);
-    remain = table.remain;
-    state = table.state;
-    std::copy(&table.line_remain[0][0], &table.line_remain[0][0] + 2 * MAX_NG_SIZE, &line_remain[0][0]);
-    std::copy(table.line_state, table.line_state + 2, line_state);
 }

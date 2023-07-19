@@ -5,7 +5,7 @@ Nonogram::Nonogram(void) : table{&line}, line{&table} {
 Nonogram::Nonogram(const Nonogram* const ng, const uint16_t vec, const uint16_t vi) : Nonogram{} {
     table.copy(ng->table);
     table.state++;
-    line.base = ng->line.base;
+    std::copy(ng->line.base, ng->line.base + size[!vec], line.base);
     table.merge(vec, vi);
 }
 
@@ -29,17 +29,17 @@ bool Nonogram::input(std::istream &is) {
     // Get the clue and initialize offset, clue_size and margin.
     for (uint16_t vec{0}; vec < 2; vec++) {
         for (uint16_t vi{0}; vi < size[vec]; vi++) {
-            uint16_t &k{clue_size[vec][vi]};
+            uint16_t &line_clue_size{clue_size[vec][vi]};
 
             getLineStream(is, ls);
-            for (k = 0; k < MAX_NG_CLUE_SIZE && ls >> offset[vec][vi][k + 1]; k++) {
-                offset[vec][vi][k + 1] += offset[vec][vi][k] + 1;
+            for (line_clue_size = 0; line_clue_size < MAX_NG_CLUE_SIZE && ls >> offset[vec][vi][line_clue_size + 1]; line_clue_size++) {
+                offset[vec][vi][line_clue_size + 1] += offset[vec][vi][line_clue_size] + 1;
             }
 
-            if (k == 0 || ls >> offset[vec][vi][k + 1] || k != 1 && offset[vec][vi][1] == 0) return false;
+            if (line_clue_size == 0 || ls >> offset[vec][vi][line_clue_size + 1] || line_clue_size != 1 && offset[vec][vi][1] == 0) return false;
 
-            margin[vec][vi] = size[!vec] - offset[vec][vi][k] + 1;
-            clue_sum[vec] += offset[vec][vi][k] - k;
+            margin[vec][vi] = size[!vec] - offset[vec][vi][line_clue_size] + 1;
+            clue_sum[vec] += offset[vec][vi][line_clue_size] - line_clue_size;
         
             if (margin[vec][vi] < 0) return false;
         }
@@ -49,9 +49,9 @@ bool Nonogram::input(std::istream &is) {
 
 bool Nonogram::solve(void) {
     while (true) {
-        // Solve a line that can be updated in the order of row and column.
+        // Solve a line that can be updated.
         for (uint16_t vec{0}; vec < 2; vec++) for (uint16_t vi{0}; vi < size[vec]; vi++) {
-            if (table.line_state[vec].test(vi)) {
+            if (table.line_state[vec][vi]) {
                 if (line.solve(vec, vi)) {
                     table.merge(vec, vi);
                 } else {
@@ -79,8 +79,8 @@ bool Nonogram::solve(void) {
     }
 }
 bool Nonogram::infer(void) {
-    for (uint16_t vi{}; vi < size[1]; vi++) {
-        // Infer a column line that is not full.
+    // Infer a column line that is not full.
+    for (uint16_t vi{0}; vi < size[1]; vi++) {
         if (table.line_remain[1][vi] > 0) {
             return line.infer(this, 1, vi);
         }
@@ -107,7 +107,7 @@ bool Nonogram::isSolved(void) noexcept {
 void Nonogram::print(std::ostream &os) {
     for (uint16_t r{0}; r < size[0]; r++) {
         for (uint16_t c{0}; c < size[1]; c++) {
-            os << printBinBit(getBinBit(base.table.base[r], c)) << ' ';
+            os << printBinBit(base.table.base[r][c]) << ' ';
         }
         os << '\n';
     }
