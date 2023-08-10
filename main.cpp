@@ -1,14 +1,13 @@
+#include <iostream>
 #include "nonogram.hpp"
 
 using namespace std;
 
 int main(void) {
-    ios::sync_with_stdio(false);
-    cin.tie(nullptr);
+    cin.tie(0)->sync_with_stdio(0);
 
     // Input a clue and print the solution if any solutions are found.
-    Nonogram::solve(cin);
-    if (Nonogram::isSolved()) Nonogram::print(cout);
+    if (Nonogram::solve(cin)) Nonogram::print(cout);
 
     return 0;
 }
