@@ -1,21 +1,24 @@
-# Outline
-This is test program using the nonogram solver class.
-
 # Usage
-## Input
-The first line of input contains r and c, where r and c are the number of rows and columns of the table.
+```
+nonogram-solver <-i <input file>> [-o <output file>] [-ins <time intervals>]
 
-The next r and c lines contain the clue of the rows and columns of the nonogram.
+    -i <input file>         Specify the path of the input file.
+    -o <output file>        Specify the path of the output file, otherwise ".out" is appended after the input path.
+    -ins <time intervals>   Print the process of solving the nonogram at specified time intervals. (Unused feature)
+```
+
+## Input File
+The first line of input contains R and C, where R and C are the number of rows and columns of the table.
+
+The next R and C lines contain the clue of the rows and columns of the clue.
 
 All values are separated with spaces and each line does not contain any empty line.
 
-## Output
-If the clue is invalid or impossible to solve, nothing is printed.
+## Output File
+If the program found solutions, regardless of the number of them, only one solved table is printed with black as '#' and white as '.'.
 
-If the class found solutions, regardless of the number of them, only one solved table is printed with black as '#' and white as '.'.
-
-## Examples
-### Nonogram
+# Example
+## Nonogram
 ```
     │   1 1   1
     │ 3 1 1 3 1
@@ -30,7 +33,7 @@ If the class found solutions, regardless of the number of them, only one solved 
   0 │ □ □ □ □ □
 ```
 
-### Input
+## Input File
 ```
 8 5
 0
@@ -48,7 +51,7 @@ If the class found solutions, regardless of the number of them, only one solved 
 1 1
 ```
 
-### Output
+## Output File
 ```
 . . . . . 
 . . . . . 
@@ -60,8 +63,3 @@ If the class found solutions, regardless of the number of them, only one solved 
 . . . . . 
 
 ```
-
-# Feature
-`main.cpp` gives only one input to the class, but it can solve several nonograms in one run.
-
-Also, it is expected to solve a line in quadratic time.
