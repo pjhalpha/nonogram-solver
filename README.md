@@ -1,10 +1,19 @@
 # Usage
+Without setting any options, you can see follow message:
 ```
-nonogram-solver <-i <input file>> [-o <output file>] [-ins <time intervals>]
+nonogram-solver <-i <input file>> [-o <output file>] [-m <max count>]
 
-    -i <input file>         Specify the path of the input file.
-    -o <output file>        Specify the path of the output file, otherwise ".out" is appended after the input path.
-    -ins <time intervals>   Print the process of solving the nonogram at specified time intervals. (Unused feature)
+    -i <input file>
+        Specify the path of the input file.
+
+    -o <output file>
+        Specify the path of the output file.
+        Otherwise, ".out" is appended after the input path.
+
+    -m <maximum count>
+        Specify the maximum count of solutions to be found.
+        Set this option as negative value to find all solutions.
+        Otherwise, only one solution could be found.
 ```
 
 ## Input File
@@ -62,4 +71,16 @@ If the program found solutions, regardless of the number of them, only one solve
 . # # . # 
 . . . . . 
 
+```
+
+# Note
+CLI is an just example of using the nonogram solver class.
+
+Include the header, create a solver instance, call its `solve` function and use it anywhere you want.
+
+`solve` function takes one unsigned integer array that first two elements are number of rows and columns of the table, and the others are length of a line clue and it.
+
+Given an example above, the array is as follows:
+```
+[8, 5, 1, 0, 1, 0, 2, 2, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 2, 1, 1, 0, 1, 3, 2, 1, 1, 2, 1, 1, 1, 3, 2, 1, 1]
 ```

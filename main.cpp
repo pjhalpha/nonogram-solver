@@ -1,141 +1,117 @@
+#include <iostream>
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <stdexcept>
 #include "nonogram.hpp"
 
 using namespace std;
 using namespace Nonogram;
 
-uint16_t input_arr[MAX_SIZE * MAX_SIZE];
-ofstream *gofs;
-clock_t inspectation_interval;
+class NGException : public runtime_error {
+public:
+    NGException(string message) : runtime_error{message} {}
+};
 
-char printBinBit(const uint16_t v) {
+Solver solver;
+ng_size_t input_arr[MAX_SIZE * MAX_SIZE];
+ng_size_t output_table[MAX_SIZE][MAX_SIZE];
+fstream ifs, ofs;
+uint64_t mx_cnt{1};
+
+char printBinBit(const ng_size_t v) {
     return v == 0b10 ? '#' : v == 0b01 ? '.' : v == 0b00 ? '?' : '!';
 }
-bool print(const Solver &o) {
-    cout << o.getTime() << " seconds taken\n";
-    for (int r{0}; r < input_arr[0]; r++) {
-        for (int c{0}; c < input_arr[1]; c++) *gofs << printBinBit(o.get(r, c)) << ' ';
-        *gofs << '\n';
+bool wrap(void) {
+    for (int r{}; r < input_arr[0]; ++r) {
+        for (int c{}; c < input_arr[1]; ++c) ofs << printBinBit(solver.get(r, c)) << ' ';
+        ofs << '\n';
     }
-    *gofs << '\n';
+    ofs << '\n';
 
-    return 0;
+    return --mx_cnt;
 }
-void inspect(const Solver &o, const uint16_t vec, const uint16_t vi, const bool inference) {
-    /* cout << (vol - o.getRemain()) * 100 / vol << '%' << '\r';
-    if (inference) {
-        for (int r{0}; r < input_arr[0]; r++) for (int c{0}; c < input_arr[1]; c++) output_table[r][c] = o.get(r, c);
+void inspect(const ng_size_t vec, const ng_size_t vi, const bool is_inference) {
+    if (is_inference) {
+        for (int r{}; r < input_arr[0]; ++r) for (int c{}; c < input_arr[1]; ++c) output_table[r][c] = solver.get(r, c);
     } else {
-        if (vec) for (int i{}; i < input_arr[0]; i++) output_table[i][vi] = o.get(vec, vi, i);
-        else for (int i{}; i < input_arr[1]; i++) output_table[vi][i] = o.get(vec, vi, i);
+        if (vec) for (int i{}; i < input_arr[0]; ++i) output_table[i][vi] = solver.get(vec, vi, i);
+        else for (int i{}; i < input_arr[1]; ++i) output_table[vi][i] = solver.get(vec, vi, i);
     }
-    for (int r{0}; r < input_arr[0]; r++) {
-        for (int c{0}; c < input_arr[1]; c++) cout << printBinBit(output_table[r][c]) << ' ';
+    for (int r{}; r < input_arr[0]; ++r) {
+        for (int c{}; c < input_arr[1]; ++c) cout << printBinBit(output_table[r][c]) << ' ';
         if (!vec && r == vi) cout << '<';
         cout << '\n';
     }
-    for (int c{0}; c < input_arr[1]; c++) cout << (vec && c == vi ? '^' : ' ') << ' ';
-    cout << '\n'; */
+    for (int c{}; c < input_arr[1]; ++c) cout << (vec && c == vi ? '^' : ' ') << ' ';
+    cout << '\n';
 }
 
 int main(int argc, char const *argv[]) {
+    string ifp, ofp, buf;
+    stringstream ls;
+
     try {
-        if (argc < 2) {
-            throw runtime_error{"Usage: "s + string{argv[0]} + " <-i <input file>> [-o <output file>] [-ins <time intervals>]\n\n\t-i <input file>\t\tSpecify the path of the input file.\n\t-o <output file>\tSpecify the path of the output file, otherwise \".out\" is appended after the input path.\n\t-ins <time intervals>\tPrint the process of solving the nonogram at specified time intervals. (Unused option)\n"s};
-        }
+        if (argc < 2) throw NGException{"Usage: "s + argv[0] + " <-i <input file>> [-o <output file>] [-m <max count>]\n\n\t-i <input file>\n\t\tSpecify the path of the input file.\n\n\t-o <output file>\n\t\tSpecify the path of the output file.\n\t\tOtherwise, \".out\" is appended after the input path.\n\n\t-m <maximum count>\n\t\tSpecify the maximum count of solutions to be found.\n\t\tSet this option as negative value to find all solutions.\n\t\tOtherwise, only one solution could be found.\n"s};
 
-        string ifp, ofp;
-        bool inspectation{};
-
-        for (int i{1}; i < argc; i++) {
+        for (int i{1}; i < argc; ++i) {
             if (argv[i][0] == '-')  {
                 if (argv[i] == "-i"s) {
                     if (i + 1 < argc) {
-                        if (ifp.empty()) {
-                            ifp = argv[++i];
-                        } else {
-                            throw runtime_error{"Error: Multiple input files specified."s};
-                        }
-                    } else {
-                        throw runtime_error{"Error: Missing input file path after -i option."s};
-                    }
+                        ifp = argv[++i];
+                    } else throw NGException{"Error: Missing the input file path after -i option."s};
                 } else if (argv[i] == "-o"s) {
                     if (i + 1 < argc) {
-                        if (ofp.empty()) {
-                            ofp = argv[++i];
-                        } else {
-                            throw runtime_error{"Error: Multiple output files specified."s};
-                        }
-                    } else {
-                        throw runtime_error{"Error: Missing output file path after -o option."s};
-                    }
-                } else if (argv[i] == "-ins"s) {
+                        ofp = argv[++i];
+                    } else throw NGException{"Error: Missing the output file path after -o option."s};
+                } else if (argv[i] == "-m"s) {
                     if (i + 1 < argc) {
-                        inspectation = 1;
-                        inspectation_interval = stoi(argv[++i]);
-                    } else {
-                        throw runtime_error{"Error: Missing time intervals after -ins option."s};
-                    }
-                } else {
-                    throw runtime_error{"Error: Unknown option: "s + argv[i]};
-                }
-            } else {
-                throw runtime_error{"Error: Unknown option: "s + argv[i]};
-            }
+                        mx_cnt = stoi(argv[++i]);
+                    } else throw NGException{"Error: Missing the maximum count of solutions after -m option."s};
+                } else throw NGException{"Error: Unknown option: "s + argv[i]};
+            } else throw NGException{"Error: Unknown option: "s + argv[i]};
         }
+        
+        ifs.open(ifp, ios::in);
 
-        ifstream ifs{ifp};
+        if (ifs.fail()) throw NGException{"Error: Unable to open the input file."s};
 
-        if (ifs.fail()) {
-            throw runtime_error{"Error: Unable to open the input file."s};
-        }
+        ofs.open(ofp.empty() ? ofp = ifp + ".out" : ofp, ios::out);
 
-        ofstream ofs{ofp.empty() ? ofp = ifp + ".out" : ofp};
+        if (ofs.fail()) throw NGException{"Error: Unable to open the output file."s};
 
-        if (ofs.fail()) {
-            ifs.close();
+        getline(ifs, buf);
+        ls = stringstream{buf};
+        for (int i{}; i < 2; ++i) ls >> input_arr[i];
+
+        for (int i{2}, vec{}; vec < 2; ++vec) for (int vi{}; vi < input_arr[vec]; ++vi) {
+            if (i >= MAX_SIZE * MAX_SIZE) throw NGException{"Error: The clue is invalid or unsolvable."s};
             
-            throw runtime_error{"Error: Unable to open the output file."s};
-        }
-
-        gofs = &ofs;
-
-        try {
-            int ii{};
-            string buf;
-            stringstream ls;
+            ng_size_t &line_clue_size{input_arr[i++]};
 
             getline(ifs, buf);
             ls = stringstream{buf};
-            for (; ii < 2; ii++) ls >> input_arr[ii];
-
-            for (int vec{0}; vec < 2; vec++) for (int vi{0}; vi < input_arr[vec]; vi++) {
-                uint16_t &line_clue_size{input_arr[ii++]};
-
-                getline(ifs, buf);
-                ls = stringstream{buf};
-                for (line_clue_size = 0; ls >> input_arr[ii]; line_clue_size++, ii++);
-            }
-
-            if (!Solver::solve(input_arr, print, inspectation ? inspect : nullptr)) {
-                throw runtime_error{"Error: The clue is invalid or unsolvable."s};
-            }
-        } catch (exception &e) {
-            ifs.close();
-            ofs.close();
-            
-            throw e;
+            for (line_clue_size = 0; i < MAX_SIZE * MAX_SIZE && ls >> input_arr[i]; ++line_clue_size, ++i);
         }
+
+        solver.setWrap(wrap);
+
+        if (!solver.solve(input_arr)) throw NGException{"Error: The clue is invalid or unsolvable."s};
+
+        cout << solver.getCount() << " solution(s) found in " << fixed << showpoint << solver.getTime() << " seconds" << endl;
 
         ifs.close();
         ofs.close();
 
         return 0;
-    } catch (exception &e) {
+    } catch (NGException &e) {
         cerr << e.what() << endl;
+    } catch (...) {
+        cerr << "Error: A fatal error has occurred."s << endl;
     }
+    
+    ifs.close();
+    ofs.close();
 
     return 1;
 }
