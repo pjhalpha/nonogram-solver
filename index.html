@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <style>
+            * {
+                margin: 1px 1px 1px 1px;
+                padding: 0;
+                font-family: consolas;
+            }
+            html, body {
+                width: 100%;
+                height: 100%;
+            }
+    
+            button {
+                width: 80px;
+                height: 30px;
+            }
+            textarea {
+                width: 300px;
+                height: 500px;
+                resize: vertical;
+                white-space: nowrap;
+            }
+        </style>
+        <script>
+            document.addEventListener("DOMContentLoaded", () => {
+                const worker = new Worker("worker.js", {type : "module"});
+                const input_size = [document.getElementById("row"), document.getElementById("col")];
+                const input_clue = [document.getElementById("row_clue"), document.getElementById("col_clue")];
+                const input_interval = document.getElementById("interval");
+                const canvas = document.getElementById("canvas");
+                const ctx = canvas.getContext("2d");
+                const time = document.getElementById("time");
+                
+                let size;
+                const setColor = (v) => {
+                    ctx.fillStyle = v == 0b10 ? "#000000" : v == 0b01 ? "#ffffff" : v == 0b00 ? "#aaaaaa" : "#ff0000";
+                }
+                const getClue = () => {
+                    let clue = [];
+    
+                    for (let i = 0; i < 2; ++i) clue.push(Number(input_size[i].value));
+                    size = clue;
+                    for (let i = 0; i < 2; ++i) for (let e of input_clue[i].value.split("\n")) {
+                        let line_clue = e.split(/\s+/).filter(Boolean).map(Number);
+    
+                        clue.push(line_clue.length);
+                        clue.push(...line_clue);
+                    }
+                    canvas.width = clue[1] * 10 + 1;
+                    canvas.height = clue[0] * 10 + 1;
+    
+                    return clue;
+                }
+                
+                worker.onmessage = function ({data}) {
+                    let [type, view, vec, vi, t] = data;
+    
+                    if (type == -1) {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        time.textContent = "failed to solve the nonogram"
+                    } else {
+                        ctx.fillStyle = "#555555";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = "#00ff00";
+                        vec ? ctx.fillRect(vi * 10, 0, 10, canvas.height) : ctx.fillRect(0, vi * 10, canvas.width, 10);
+                        for (let r = 0; r < size[0]; r++) for (let c = 0; c < size[1]; c++) {
+                            setColor(view[r * size[1] + c]);
+                            ctx.fillRect(c * 10 + 1, r * 10 + 1, 8, 8);
+                        }
+                        if (type == 0) time.textContent = t + "s";
+                    }
+                }
+    
+                document.getElementById("solve").addEventListener("click", () => worker.postMessage([0, getClue(), 0]));
+                document.getElementById("inspect").addEventListener("click", () => worker.postMessage([1, getClue(), Number(input_interval.value)]));
+            });
+        </script>
+    </head>
+    <body>
+        <div>
+            <div id="button">
+                <button id="solve">solve</button>
+                <button id="inspect">inspect</button>
+                <input id="interval" type="number" placeholder="interval (ms)">
+            </div>
+            <div style="display: grid; grid-template-columns: min-content min-content;">
+                <input id="row" type="number" placeholder="rows">
+                <input id="col" type="number" placeholder="cloumns">
+                <textarea id="row_clue" placeholder="row clues"></textarea>
+                <textarea id="col_clue" placeholder="cloumn clues"></textarea>
+            </div>
+        </div>
+        <div>
+            <p id="time"></p>
+            <canvas id="canvas"></canvas>
+        </div>
+    </body>    
+</html>
