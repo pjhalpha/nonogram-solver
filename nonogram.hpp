@@ -88,7 +88,7 @@ namespace Nonogram {
         ng_sq_size_t state; // Number of lines having possibility to be updated.
         ng_size_t line_remain[2][MAX_SIZE]; // Number of grays in line ([vector][vector index]).
         ng_bit_array_t line_state[2][getBitArraySize(MAX_SIZE, 1)]; // Possibility to be updated ([vector][vector index]).
-        bool init(void); // Initialize and quickly fill in some pixles of the table, return solvability.
+        bool init(void); // Initialize and fastly fill some pixles of the table, return solvability.
         bool solve(void); // Solve nonogram until the table is no longer updated, return whether to stop finding more solutions.
         bool infer(void); // Fix one line arbitrarily when the table is no longer updated, return whether to stop finding more solutions.
         void merge(const ng_size_t, const ng_size_t); // Merge the table and a solved line.
@@ -110,17 +110,19 @@ namespace Nonogram {
         const Clue &clue; // Clue.
         Solver &solver; // Solver.
         LineSolver *llink, *rlink; // Links of a line solver for inference.
-        ng_bit_array_t data[getBitArraySize(MAX_SIZE + 1, 2)]; // Line ([index], 0b10 black, 0b01 white, 0b00 gray).
+        ng_bit_array_t line[getBitArraySize(MAX_SIZE + 1, 2)]; // Line ([index], 0b10 black, 0b01 white, 0b00 gray).
+        ng_size_t sweep_line[2][MAX_SIZE + 1]; // Line for sweeping ([0 white, 1 black][index]).
         ng_size_t color[2][MAX_SIZE + 2]; // Prefix sum of pixels ([0 white, 1 black][index]).
         ng_size_t shift[2][MAX_CLUE_SIZE + 2]; // Shift index ([0 current, 1 previous][clue index]).
-        ng_bit_array_t cache[2][MAX_CLUE_SIZE + 2][getBitArraySize(MAX_SIZE, 1)]; // Solubility according to shift index ([0 impossible, 1 possible][clue index][shift index]).
-        ng_bit_array_t subcache[getBitArraySize(MAX_CLUE_SIZE + 2, 1)]; // Solubility according to clue index ([clue index]).
+        ng_bit_array_t clue_cache[getBitArraySize(MAX_CLUE_SIZE + 2, 1)]; // Solubility according to clue index ([clue index]).
+        ng_bit_array_t shift_cache[2][MAX_CLUE_SIZE + 2][getBitArraySize(MAX_SIZE, 1)]; // Solubility according to shift index ([0 impossible, 1 possible][clue index][shift index]).
         void init(const ng_size_t, const ng_size_t); // Initialize variables.
         bool solve(const ng_size_t, const ng_size_t); // Solve a line, return solubility.
         bool infer(const ng_size_t, const ng_size_t); // Fix a line arbitrarily, return solubility.
         ng_sq_size_t get(const ng_size_t) const; // Return a pixel of the line.
         void set(const ng_size_t, const ng_size_t); // Set a pixel of the line.
-        void fill(const ng_size_t, const ng_size_t, const ng_size_t); // Fill The line using bitwise AND.
+        void fill(const ng_size_t, const ng_size_t, const bool); // Fill the line for sweeping.
+        void sweep(const ng_size_t); // Sweep sweep_line to fill line.
     };
 };
 
