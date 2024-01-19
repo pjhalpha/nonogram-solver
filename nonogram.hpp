@@ -59,7 +59,6 @@ namespace Nonogram {
 
     public:
         Solver(void);
-        ~Solver(void);
         Solver(const Solver&) = delete;
         Solver &operator=(const Solver&) = delete;
         

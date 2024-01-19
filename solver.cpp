@@ -1,10 +1,7 @@
 #include "nonogram.hpp"
 
 namespace Nonogram {
-    Solver::Solver(void) : line{new LineSolver{*this, nullptr}}, wrap{}, inspect{} {}
-    Solver::~Solver(void) {
-        delete line;
-    }
+    Solver::Solver(void) : wrap{}, inspect{} {}
 
     void Solver::setWrap(bool (*wrap_ptr)(void)) {
         wrap = wrap_ptr;
@@ -13,16 +10,17 @@ namespace Nonogram {
         inspect = inspect_ptr;
     }
     bool Solver::solve(const ng_size_t* const input_arr) {
-        // Initialize depth, count and time_start and solve.
+        // Initialize line, depth, count and time_start and solve.
+        line = new LineSolver{*this, nullptr};
         depth = 0;
         count = 0;
         time_start = clock();
         if (clue.input(input_arr) && init()) solve();
 
         // Free every line solvers except the first one.
-        for (LineSolver *prev{line->rlink}, *cur; prev; prev = cur) {
+        for (LineSolver *prev{line}, *cur; prev; prev = cur) {
             cur = prev->rlink;
-            delete prev;
+            free(prev);
         }
 
         return count;
