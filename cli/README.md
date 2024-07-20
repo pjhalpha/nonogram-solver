@@ -1,6 +1,6 @@
 # Build
 ```
-g++ nonogram.hpp clue.cpp solver.cpp linesolver.cpp cli.cpp -O3 -o nonogram-solver
+g++ cli.cpp -O3 -o nonogram-solver
 ```
 
 # Usage

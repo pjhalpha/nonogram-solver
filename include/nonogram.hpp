@@ -61,24 +61,23 @@ namespace Nonogram {
         Solver(void);
         Solver(const Solver&) = delete;
         Solver &operator=(const Solver&) = delete;
+        virtual ~Solver(void) = default;
         
-        void setWrap(bool (*)(void) = nullptr); // Specify a function to be called whenever a solution is found.
-        void setInspect(void (*)(const ng_size_t, const ng_size_t, const bool) = nullptr); // Specify a function to be called when a line is solved.
         bool solve(const ng_size_t* const); // Input the clue from array, return solubility.
         ng_size_t get(const ng_size_t, const ng_size_t) const; // Return a pixel of the table.
         ng_size_t get(const bool, const ng_size_t, const ng_size_t) const; // Return a pixel of the table.
         ng_sq_size_t getRemain(void) const; // Return the count of remain pixels of the table.
-        ng_size_t getCount(void) const; // Return the count of soulutions.
+        ng_sq_size_t getCount(void) const; // Return the count of soulutions.
         long double getTime(void) const; // Return taken time for solving the nonogram.
-    
+        virtual bool wrap(void) = 0; // Whenever the nonogram is solved, return whether to continue finding more solutions.
+        virtual bool inspect(const ng_size_t, const ng_size_t, const bool) = 0; // Whenever a line is solved, return whether to continue finding more solutions.
+
     private:
         Clue clue; // Clue.
         LineSolver *line; // Line solver.
-        ng_size_t count; // Count of the found solutions of the nonogram.
+        ng_sq_size_t count; // Count of the found solutions of the nonogram.
         clock_t time_start; // Time of starting solving the nonogram.
         clock_t time_end; // Time of solving the nonogram.
-        bool (*wrap)(void); // Function to be called whenever the nonogram is solved, return whether to continue finding more solutions.
-        void (*inspect)(const ng_size_t, const ng_size_t, const bool); // Function to be called whenever a line is solved.
         
         ng_size_t depth; // Depth of inference.
         ng_bit_array_t table[MAX_SIZE][getBitArraySize(MAX_SIZE, 2)]; // Table ([row][column], 0b10 black, 0b01 white, 0b00 gray).
@@ -124,5 +123,9 @@ namespace Nonogram {
         void sweep(const ng_size_t); // Sweep sweep_line to fill line.
     };
 };
+
+#include "clue.cpp"
+#include "solver.cpp"
+#include "linesolver.cpp"
 
 #endif // NONOGRAM_H

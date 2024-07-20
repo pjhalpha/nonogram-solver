@@ -6,7 +6,8 @@ Check out RAEDME.md contained in each folder.
 # Note
 The maximum size of nonogram is 255 × 255 now but you can edit it by changing `Nonogram::MAX_SIZE`.
 
-`solve` function in `Nonogram::Sovler` takes one unsigned integer array that first two elements are number of rows and columns of the table, and the others are length of a line clue and it.
+You have to inherit `Nonogram::Sovler` and implement `Nonogram::Sovler::wrap` and `Nonogram::Sovler::inspect`.
+`Nonogram::Sovler::solve` takes one unsigned integer array that first two elements are number of rows and columns of the table, and the others are length of a line clue and it.
 ```
     │   1 1   1
     │ 3 1 1 3 1

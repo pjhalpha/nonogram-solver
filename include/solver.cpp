@@ -1,14 +1,8 @@
 #include "nonogram.hpp"
 
 namespace Nonogram {
-    Solver::Solver(void) : wrap{}, inspect{} {}
+    Solver::Solver(void) {}
 
-    void Solver::setWrap(bool (*wrap_ptr)(void)) {
-        wrap = wrap_ptr;
-    }
-    void Solver::setInspect(void (*inspect_ptr)(const ng_size_t, const ng_size_t, const bool)) {
-        inspect = inspect_ptr;
-    }
     bool Solver::solve(const ng_size_t* const input_arr) {
         // Initialize line, depth, count and time_start and solve.
         line = new LineSolver{*this, nullptr};
@@ -34,7 +28,7 @@ namespace Nonogram {
     ng_sq_size_t Solver::getRemain(void) const {
         return remain;
     }    
-    ng_size_t Solver::getCount(void) const {
+    ng_sq_size_t Solver::getCount(void) const {
         return count;
     }
     long double Solver::getTime(void) const {
@@ -61,7 +55,8 @@ namespace Nonogram {
                     fill(vec, vi, clue.offset[vec][vi][ci] + clue.margin[vec][vi], clue.offset[vec][vi][ci + 1] - 1, 0b10);
                 }
             }
-            if (inspect) inspect(vec, vi, false);
+
+            if (!inspect(vec, vi, false)) return false;
         }
 
         // Set state to false if all pixels of a line are gray.
@@ -81,7 +76,8 @@ namespace Nonogram {
                 if (getBitArrayElement(line_state[vec], vi, 1)) {
                     if (line->solve(vec, vi)) {
                         merge(vec, vi);
-                        if (inspect) inspect(vec, vi, false);
+                        
+                        if (!inspect(vec, vi, false)) return false;
                     } else {
                         return false;
                     }
@@ -95,7 +91,7 @@ namespace Nonogram {
                         ++count;
                         time_end = clock();
                         
-                        return wrap ? !wrap() : false;
+                        return !wrap();
                     }
                     return false;
                 } else {
@@ -145,7 +141,7 @@ namespace Nonogram {
         }
         line = line->rlink;
 
-        if (inspect) inspect(vec, vi, true);
+        if (!inspect(vec, vi, true)) return false;
 
         if (solve()) {
             return true;

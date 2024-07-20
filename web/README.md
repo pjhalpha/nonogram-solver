@@ -1,6 +1,6 @@
 # Build
 ```
-em++ clue.cpp solver.cpp linesolver.cpp wasm.cpp -sEXPORTED_FUNCTIONS=['_getInputPtr','_getOutputPtr','_setWrap','_setInspect','_setFail','_getRemain','_getCount','_getTime','_solve'] -sEXPORTED_RUNTIME_METHODS=['addFunction'] -sEXPORT_ES6=1 -sMODULARIZE -sALLOW_TABLE_GROWTH -sEXPORT_NAME='createModule' -O3 -o nonogram-solver.js
+em++ wasm.cpp -sEXPORTED_FUNCTIONS=['_getInputPtr','_getOutputPtr','_setWrap','_setInspect','_setFail','_getRemain','_getCount','_getTime','_solve'] -sEXPORTED_RUNTIME_METHODS=['addFunction'] -sEXPORT_ES6=1 -sMODULARIZE -sALLOW_TABLE_GROWTH -sEXPORT_NAME='createModule' -O3 -o nonogram-solver.js
 ```
 
 # Usage
