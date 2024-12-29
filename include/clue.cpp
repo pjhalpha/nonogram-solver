@@ -2,33 +2,41 @@
 
 namespace Nonogram {
     bool Clue::input(const ng_size_t* const input_arr) {
-        ng_sq_size_t ii{0};
+        ng_sq_size_t i{0};
         ng_sq_size_t clue_sum[2]{0};
 
         // Get the number of rows and columns of the table.
-        memcpy(size, input_arr, sizeof(ng_size_t) * 2);
-        ii += 2;
+        std::memcpy(size_, input_arr, sizeof(ng_size_t) * 2);
+        i += 2;
         
-        if (size[0] > MAX_SIZE || size[1] > MAX_SIZE) return false;
+        if (size_[0] > MAX_SIZE || size_[1] > MAX_SIZE) {
+            return false;
+        }
 
-        // Initialize size, offset, clue_size and margin from the clue.
-        for (ng_size_t vec{0}; vec < 2; ++vec) for (ng_size_t vi{0}; vi < size[vec]; ++vi) {
-            clue_size[vec][vi] = input_arr[ii++];
+        // Initialize size_, offset_, clue_size_ and margin_ from the clue.
+        for (ng_size_t vec{0}; vec < 2; ++vec) for (ng_size_t vec_i{0}; vec_i < size_[vec]; ++vec_i) {
+            clue_size_[vec][vec_i] = input_arr[i++];
 
-            if (!clue_size[vec][vi] || clue_size[vec][vi] >= MAX_CLUE_SIZE) return false;
-
-            memcpy(offset[vec][vi] + 1, input_arr + ii, sizeof(ng_size_t) * clue_size[vec][vi]);
-            ii += clue_size[vec][vi];
-            for (ng_size_t ci{0}; ci < clue_size[vec][vi]; ++ci) {
-                offset[vec][vi][ci + 1] += offset[vec][vi][ci] + 1;
+            if (clue_size_[vec][vec_i] == 0 || clue_size_[vec][vec_i] >= MAX_CLUE_SIZE) {
+                return false;
             }
 
-            if (clue_size[vec][vi] != 1 && !offset[vec][vi][1]) return false;
+            std::memcpy(offset_[vec][vec_i] + 1, input_arr + i, sizeof(ng_size_t) * clue_size_[vec][vec_i]);
+            i += clue_size_[vec][vec_i];
+            for (ng_size_t cele_i{0}; cele_i < clue_size_[vec][vec_i]; ++cele_i) {
+                offset_[vec][vec_i][cele_i + 1] += offset_[vec][vec_i][cele_i] + 1;
+            }
 
-            margin[vec][vi] = size[!vec] - offset[vec][vi][clue_size[vec][vi]] + 1;
-            clue_sum[vec] += offset[vec][vi][clue_size[vec][vi]] - clue_size[vec][vi];
+            if (clue_size_[vec][vec_i] != 1 && offset_[vec][vec_i][1] == 0) {
+                return false;
+            }
+
+            margin_[vec][vec_i] = size_[!vec] - offset_[vec][vec_i][clue_size_[vec][vec_i]] + 1;
+            clue_sum[vec] += offset_[vec][vec_i][clue_size_[vec][vec_i]] - clue_size_[vec][vec_i];
         
-            if (margin[vec][vi] < 0) return false;
+            if (margin_[vec][vec_i] < 0) {
+                return false;
+            }
         }
         return clue_sum[0] == clue_sum[1];
     }

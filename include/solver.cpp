@@ -1,69 +1,71 @@
 #include "nonogram.hpp"
 
 namespace Nonogram {
-    Solver::Solver(void) {}
-
     bool Solver::solve(const ng_size_t* const input_arr) {
-        // Initialize line, depth, count and time_start and solve.
-        line = new LineSolver{*this, nullptr};
-        depth = 0;
-        count = 0;
-        time_start = clock();
-        if (clue.input(input_arr) && init()) solve();
-
-        // Free every line solvers except the first one.
-        for (LineSolver *prev{line}, *cur; prev; prev = cur) {
-            cur = prev->rlink;
-            free(prev);
+        // Initialize line_solver_, depth_, count_ and time_start_ and solve the nonogram.
+        line_solver_ = new LineSolver{*this, nullptr};
+        depth_ = 0;
+        count_ = 0;
+        time_start_ = clock();
+        if (clue_.input(input_arr) && init()) {
+            solve();
         }
 
-        return count;
+        // Free every line solvers.
+        for (LineSolver *prev_link{line_solver_}, *cur_link; prev_link; prev_link = cur_link) {
+            cur_link = prev_link->next_link_;
+            std::free(prev_link);
+        }
+
+        return count_;
     }
-    ng_size_t Solver::get(const ng_size_t r, const ng_size_t c) const {
-        return depth_table[r][c] <= depth ? getBitArrayElement(table[r], c, 2) : 0b00;
+    ng_size_t Solver::get(const ng_size_t row, const ng_size_t col) const {
+        return (depth_table_[row][col] <= depth_) ? getBitArrayElement(table_[row], col, 2) : 0b00;
     }
-    ng_size_t Solver::get(const bool vec, const ng_size_t vi, const ng_size_t i) const {
-        return get(vec ? i : vi, vec ? vi : i);
+    ng_size_t Solver::get(const bool vec, const ng_size_t vec_i, const ng_size_t cross_i) const {
+        return get(vec ? cross_i : vec_i, vec ? vec_i : cross_i);
     }
     ng_sq_size_t Solver::getRemain(void) const {
-        return remain;
+        return remain_;
     }    
     ng_sq_size_t Solver::getCount(void) const {
-        return count;
+        return count_;
     }
-    long double Solver::getTime(void) const {
-        return time_start == -1 || time_end == -1 ? -1 : static_cast<long double>(time_end - time_start) / CLOCKS_PER_SEC;
+    double Solver::getTime(void) const {
+        return (time_start_ == -1 || time_end_ == -1) ? -1 : static_cast<double>(time_end_ - time_start_) / CLOCKS_PER_SEC;
     }
 
     bool Solver::init(void) {
-        // Initialize table, dpeth_table, remain, state, line_remain and line_state.
-        memset(table, 0, sizeof table);
-        memset(depth_table, 0, sizeof depth_table);
-        remain = clue.size[0] * clue.size[1];
-        state = clue.size[0] + clue.size[1];
-        for (ng_size_t vec{0}; vec < 2; ++vec) for (ng_size_t vi{0}; vi < clue.size[vec]; ++vi) {
-            line_remain[vec][vi] = clue.size[!vec];
+        // Initialize table_, dpeth_table_, remain_, state_, line_remain_ and line_state_.
+        std::memset(table_, 0, sizeof table_);
+        std::memset(depth_table_, 0, sizeof depth_table_);
+        remain_ = clue_.size_[0] * clue_.size_[1];
+        state_ = clue_.size_[0] + clue_.size_[1];
+        for (ng_size_t vec{0}; vec < 2; ++vec) for (ng_size_t vec_i{0}; vec_i < clue_.size_[vec]; ++vec_i) {
+            line_remain_[vec][vec_i] = clue_.size_[!vec];
         }
-        memset(line_state, -1, sizeof line_state);
+        std::memset(line_state_, -1, sizeof line_state_);
 
         // Fill lines whose clue is 0 and is not 0.
-        for (ng_size_t vec{0}; vec < 2; ++vec) for (ng_size_t vi{0}; vi < clue.size[vec]; ++vi) {
-            if (clue.offset[vec][vi][1] == 1) {
-                fill(vec, vi, 0, clue.size[!vec], 0b01);
+        for (ng_size_t vec{0}; vec < 2; ++vec) for (ng_size_t vec_i{0}; vec_i < clue_.size_[vec]; ++vec_i) {
+            if (clue_.offset_[vec][vec_i][1] == 1) {
+                fill(vec, vec_i, 0, clue_.size_[!vec], 0b01);
             } else {
-                for (ng_size_t ci{0}; ci < clue.clue_size[vec][vi]; ++ci) {
-                    fill(vec, vi, clue.offset[vec][vi][ci] + clue.margin[vec][vi], clue.offset[vec][vi][ci + 1] - 1, 0b10);
+                for (ng_size_t cele_i{0}; cele_i < clue_.clue_size_[vec][vec_i]; ++cele_i) {
+                    fill(vec, vec_i, clue_.offset_[vec][vec_i][cele_i] + clue_.margin_[vec][vec_i], clue_.offset_[vec][vec_i][cele_i + 1] - 1, 0b10);
                 }
             }
 
-            if (!inspect(vec, vi, false)) return false;
+            if (!inspect(vec, vec_i, false)) {
+                return false;
+            }
         }
 
-        // Set state to false if all pixels of a line are gray.
-        for (ng_size_t vec{0}; vec < 2; ++vec) for (ng_size_t vi{0}; vi < clue.size[vec]; ++vi) {
-            if (!line_remain[vec][vi] || line_remain[vec][vi] == clue.size[!vec]) {
-                --state;
-                andBitArrayElement(line_state[vec], vi, 0b0, 1);
+        // Set state_ to false if all pixels of a line are gray.
+        for (ng_size_t vec{0}; vec < 2; ++vec) for (ng_size_t vec_i{0}; vec_i < clue_.size_[vec]; ++vec_i) {
+            if (line_remain_[vec][vec_i] == 0 || line_remain_[vec][vec_i] == clue_.size_[!vec]) {
+                --state_;
+                andBitArrayElement(line_state_[vec], vec_i, 0b0, 1);
             }
         }
 
@@ -72,12 +74,14 @@ namespace Nonogram {
     bool Solver::solve(void) {
         while (true) {
             // Solve a line that can be updated.
-            for (ng_size_t vec{0}; vec < 2; ++vec) for (ng_size_t vi{0}; vi < clue.size[vec]; ++vi) {
-                if (getBitArrayElement(line_state[vec], vi, 1)) {
-                    if (line->solve(vec, vi)) {
-                        merge(vec, vi);
+            for (ng_size_t vec{0}; vec < 2; ++vec) for (ng_size_t vec_i{0}; vec_i < clue_.size_[vec]; ++vec_i) {
+                if (getBitArrayElement(line_state_[vec], vec_i, 1) != 0b0) {
+                    if (line_solver_->solve(vec, vec_i)) {
+                        merge(vec, vec_i);
                         
-                        if (!inspect(vec, vi, false)) return false;
+                        if (!inspect(vec, vec_i, false)) {
+                            return false;
+                        }
                     } else {
                         return false;
                     }
@@ -85,11 +89,11 @@ namespace Nonogram {
             }
 
             // Verify or infer the table if no line can be updated.
-            if (!state) {
-                if (!remain) {
+            if (state_ == 0) {
+                if (remain_ == 0) {
                     if (verify()) {
-                        ++count;
-                        time_end = clock();
+                        ++count_;
+                        time_end_ = clock();
                         
                         return !wrap();
                     }
@@ -102,92 +106,94 @@ namespace Nonogram {
     }
     bool Solver::infer(void) {
         // Infer a column line that is not full.
-        for (ng_size_t vi{0}; vi < clue.size[1]; ++vi) {
-            if (line_remain[1][vi]) {
-                return line->infer(1, vi);
+        for (ng_size_t vec_i{0}; vec_i < clue_.size_[1]; ++vec_i) {
+            if (line_remain_[1][vec_i]) {
+                return line_solver_->infer(1, vec_i);
             }
         }
         return false;
     }
-    void Solver::merge(const ng_size_t vec, const ng_size_t vi) {
+    void Solver::merge(const bool vec, const ng_size_t vec_i) {
         ng_sq_size_t changed{0};
 
-        // Merge the table with the solved line and update table, remain, state, line_remain and line_state.
-        for (ng_size_t i{0}; i < clue.size[!vec]; ++i) {
-            if (!get(vec, vi, i) && line->get(i)) {
-                set(vec, vi, i, line->get(i));
+        // Merge the table with the solved line and update table_, remain_, state_, line_remain_ and line_state_.
+        for (ng_size_t cross_i{0}; cross_i < clue_.size_[!vec]; ++cross_i) {
+            if (get(vec, vec_i, cross_i) == 0b00 && line_solver_->get(cross_i) != 0b00) {
+                set(vec, vec_i, cross_i, line_solver_->get(cross_i));
                 ++changed;
-                --line_remain[!vec][i];
-                if (!getBitArrayElement(line_state[!vec], i, 1)) {
-                    ++state;
-                    orBitArrayElement(line_state[!vec], i, 0b1, 1);
+                --line_remain_[!vec][cross_i];
+                if (getBitArrayElement(line_state_[!vec], cross_i, 1) == 0b0) {
+                    ++state_;
+                    orBitArrayElement(line_state_[!vec], cross_i, 0b1, 1);
                 }
             }
         }
-        remain -= changed;
-        --state;
-        line_remain[vec][vi] -= changed;
-        andBitArrayElement(line_state[vec], vi, 0b0, 1);
+        remain_ -= changed;
+        --state_;
+        line_remain_[vec][vec_i] -= changed;
+        andBitArrayElement(line_state_[vec], vec_i, 0b0, 1);
     }
-    bool Solver::next(const ng_size_t vec, const ng_size_t vi) {
-        // Merge the table with the infered line and update depth and state.
-        ++depth;
-        ++state;
-        merge(vec, vi);
+    bool Solver::next(const bool vec, const ng_size_t vec_i) {
+        // Merge the table with the infered line and update depth_ and state_.
+        ++depth_;
+        ++state_;
+        merge(vec, vec_i);
 
         // Create new link if there are no next link.
-        if (!line->rlink) {
-            line->rlink = new LineSolver{*this, line};
+        if (!line_solver_->next_link_) {
+            line_solver_->next_link_ = new LineSolver{*this, line_solver_};
         }
-        line = line->rlink;
+        line_solver_ = line_solver_->next_link_;
 
-        if (!inspect(vec, vi, true)) return false;
+        if (!inspect(vec, vec_i, true)) {
+            return false;
+        }
 
         if (solve()) {
             return true;
         }
 
         // Initialize to before the inference.
-        line = line->llink;
-        for (int r{0}; r < clue.size[0]; ++r) for (int c{0}; c < clue.size[1]; ++c) {
-            if (depth_table[r][c] == depth) {
-                andBitArrayElement(table[r], c, 0b00, 2);
-                ++remain;
-                ++line_remain[0][r];
-                ++line_remain[1][c];
-                depth_table[r][c] = 0;
+        line_solver_ = line_solver_->prev_link_;
+        for (int row{0}; row < clue_.size_[0]; ++row) for (int col{0}; col < clue_.size_[1]; ++col) {
+            if (depth_table_[row][col] == depth_) {
+                andBitArrayElement(table_[row], col, 0b00, 2);
+                ++remain_;
+                ++line_remain_[0][row];
+                ++line_remain_[1][col];
+                depth_table_[row][col] = 0;
             }
         }
-        state = 0;
-        memset(line_state, 0, sizeof line_state);
-        --depth;
+        state_ = 0;
+        std::memset(line_state_, 0, sizeof line_state_);
+        --depth_;
 
         return false;
     }
     bool Solver::verify(void) {
         // Solve the table again to verify.
-        for (ng_size_t vec{0}; vec < 2; ++vec) for (ng_size_t vi{0}; vi < clue.size[vec]; ++vi) {
-            if (clue.offset[vec][vi][1] != 1 && !line->solve(vec, vi)) {
+        for (ng_size_t vec{0}; vec < 2; ++vec) for (ng_size_t vec_i{0}; vec_i < clue_.size_[vec]; ++vec_i) {
+            if (clue_.offset_[vec][vec_i][1] != 1 && !line_solver_->solve(vec, vec_i)) {
                 return false;
             }
         }
         return true;
     }
-    void Solver::set(const ng_size_t r, const ng_size_t c, const ng_size_t v) {
-        orBitArrayElement(table[r], c, v, 2);
-        depth_table[r][c] = depth;
+    void Solver::set(const ng_size_t row, const ng_size_t col, const ng_size_t val) {
+        orBitArrayElement(table_[row], col, val, 2);
+        depth_table_[row][col] = depth_;
     }
-    void Solver::set(const bool vec, const ng_size_t vi, const ng_size_t i, const ng_size_t v) {
-        set(vec ? i : vi, vec ? vi : i, v);
+    void Solver::set(const bool vec, const ng_size_t vec_i, const ng_size_t cross_i, const ng_size_t val) {
+        set(vec ? cross_i : vec_i, vec ? vec_i : cross_i, val);
     }
-    void Solver::fill(const bool vec, const ng_size_t vi, const ng_size_t s, const ng_size_t e, const ng_size_t v) {
-        // Set a pixel and update remain if a pixel is not a gray.
-        for (ng_size_t i{s}; i < e; ++i) {
-            if (!get(vec, vi, i)) {
-                set(vec, vi, i, v);
-                --remain;
-                --line_remain[0][vec ? i : vi];
-                --line_remain[1][vec ? vi : i];
+    void Solver::fill(const bool vec, const ng_size_t vec_i, const ng_size_t start, const ng_size_t end, const ng_size_t val) {
+        // Set a pixel and update remain_ if a pixel is not a gray.
+        for (ng_size_t cross_i{start}; cross_i < end; ++cross_i) {
+            if (get(vec, vec_i, cross_i) == 0b00) {
+                set(vec, vec_i, cross_i, val);
+                --remain_;
+                --line_remain_[0][vec ? cross_i : vec_i];
+                --line_remain_[1][vec ? vec_i : cross_i];
             }
         }
     }
