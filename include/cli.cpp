@@ -35,17 +35,18 @@ public:
 
         for (int i{2}, vec{0}; vec < 2; ++vec) {
             for (int vec_i{0}; vec_i < input_arr_[vec]; ++vec_i) {
-            if (i >= Nonogram::MAX_SIZE * Nonogram::MAX_SIZE) throw std::runtime_error{"Error: The clue is invalid or unsolvable."s};
-            
-            Nonogram::ng_size_t &line_clue_size{input_arr_[i++]};
+                if (i >= Nonogram::MAX_SIZE * Nonogram::MAX_SIZE) throw std::runtime_error{"Error: The clue is invalid or unsolvable."s};
+                
+                Nonogram::ng_size_t &line_clue_size{input_arr_[i++]};
 
-            std::getline(ifs_, buf_);
-            ls_ = std::stringstream{buf_};
-            for (line_clue_size = 0; i < Nonogram::MAX_SIZE * Nonogram::MAX_SIZE && ls_ >> input_arr_[i]; ++line_clue_size, ++i);
-        }
+                std::getline(ifs_, buf_);
+                ls_ = std::stringstream{buf_};
+                for (line_clue_size = 0; i < Nonogram::MAX_SIZE * Nonogram::MAX_SIZE && ls_ >> input_arr_[i]; ++line_clue_size, ++i);
+            }
         }
 
-        if (!solve(input_arr_)) throw std::runtime_error{"Error: The clue is invalid or unsolvable."s};
+        if (!clue_.init(input_arr_)) throw std::runtime_error{"Error: The clue is invalid."s};
+        if (!solve(clue_)) throw std::runtime_error{"Error: The clue is unsolvable."s};
 
         std::cout << getCount() << " solution(s) found in " << std::fixed << std::showpoint << getTime() << " seconds" << std::endl;
         
@@ -59,6 +60,7 @@ private:
     std::string buf_;
     Nonogram::ng_size_t input_arr_[Nonogram::MAX_SIZE * Nonogram::MAX_SIZE], output_table_[Nonogram::MAX_SIZE][Nonogram::MAX_SIZE];
     uint64_t max_count_;
+    Nonogram::Clue clue_;
 
     char printBinBit(const Nonogram::ng_size_t val) {
         return (val == 0b10) ? '#' : (val == 0b01) ? '.' : (val == 0b00) ? '?' : '!';
@@ -108,7 +110,9 @@ private:
 
         return true;
     }
-} solver;
+};
+
+static MySolver solver;
 
 int main(int argc, char const *argv[]) {
     std::string ifp{"input.txt"}, ofp{"output.txt"};

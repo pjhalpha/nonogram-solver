@@ -48,7 +48,10 @@ public:
     void fail(void) {
         js_fail_();
     }
-} solver;
+};
+
+static Nonogram::Clue clue;
+static MySolver solver;
 
 extern "C" {
     uint16_t *getInputPtr(void) {
@@ -78,7 +81,7 @@ extern "C" {
     void solve(bool inspection, uint64_t js_interval) {
         solver.do_inspection_ = inspection;
         solver.interval_ = js_interval;
-        if (solver.solve(solver.input_)) {
+        if (clue.init(solver.input_) && solver.solve(clue)) {
             solver.wrap();
         } else {
             solver.fail();
