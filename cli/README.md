@@ -1,4 +1,5 @@
 # Build
+An executable file can be compiled using g++ with the following command:
 ```
 g++ cli.cpp -O3 -o nonogram-solver
 ```
@@ -26,7 +27,7 @@ The first line of input contains R and C, where R and C are the number of rows a
 
 The next R and C lines contain the clue of the rows and columns of the clue.
 
-All values are separated with spaces and each line does not contain any empty line.
+All values are separated with spaces and there are no empty lines.
 
 ## Output File
 The specified maximum count or less of solved table is printed with black as '#' and white as '.'.
